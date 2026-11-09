@@ -1,0 +1,43 @@
+name: store
+
+# Ambiente LOCAL de teste do auth: db + account + auth.
+# O account e construido a partir do repo irmao ../Account-service
+# (rode "mvn package" la antes). So o auth publica porta.
+services:
+  db:
+    image: postgres:17
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER:-store}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-store}
+      POSTGRES_DB: ${DB_NAME:-store}
+
+  account:
+    build: ../Account-service
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_DB: ${DB_NAME:-store}
+      DATABASE_USERNAME: ${DB_USER:-store}
+      DATABASE_PASSWORD: ${DB_PASSWORD:-store}
+      # seed do primeiro ADMIN (do .env local, fora do Git)
+      ACCOUNT_ADMIN_EMAIL: ${ACCOUNT_ADMIN_EMAIL:?defina ACCOUNT_ADMIN_EMAIL no .env}
+      ACCOUNT_ADMIN_HASH: ${ACCOUNT_ADMIN_HASH:?defina ACCOUNT_ADMIN_HASH no .env}
+    depends_on:
+      - db
+
+  auth:
+    build: .
+    ports:
+      - 8080:8080
+    environment:
+      # sem default: o compose para com erro se faltar no .env
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?defina JWT_SECRET_KEY no .env}
+      JWT_DURATION: ${JWT_DURATION:-3600000}
+      JWT_HTTP_ONLY: ${JWT_HTTP_ONLY:-true}
+    depends_on:
+      - account
+
+volumes:
+  db-data:
