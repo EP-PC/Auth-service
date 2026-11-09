@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: auth
+
+store:
+  jwt:
+    # chave HMAC em Base64 (>= 32 bytes decodificados). SEM default:
+    # se JWT_SECRET_KEY nao estiver no ambiente, o servico nao sobe.
+    secretKey: ${JWT_SECRET_KEY}
+    # duracao do token e do cookie, em milissegundos (1 h)
+    duration: ${JWT_DURATION:3600000}
+    httpOnly: ${JWT_HTTP_ONLY:true}
