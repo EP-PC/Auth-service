@@ -35,6 +35,13 @@ spec:
                     name: auth-secrets
                     key: JWT_SECRET_KEY
 
+              # o gateway no EKS e acessado por HTTP puro (http://<lb>.elb.amazonaws.com:8080,
+              # sem dominio/HTTPS): com Secure o navegador/curl descartam o cookie.
+              # false -> sem Secure e SameSite=Lax. O JWT trafega em claro: paliativo;
+              # com dominio + ACM + HTTPS no Load Balancer, voltar para "true"
+              - name: JWT_COOKIE_SECURE
+                value: "false"
+
               # heap de ate 50% do limite (256 MB de 512Mi); sobra para metaspace/threads
               - name: JAVA_TOOL_OPTIONS
                 value: "-XX:MaxRAMPercentage=50"

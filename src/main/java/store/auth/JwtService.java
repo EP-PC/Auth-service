@@ -26,17 +26,20 @@ public class JwtService {
     private final SecretKey key;
     private final long duration;
     private final boolean httpOnly;
+    private final boolean cookieSecure;
 
     // a chave e montada uma vez so: Base64 invalido ou chave < 256 bits
     // (WeakKeyException) derrubam a inicializacao, em vez de falhar no 1o login
     public JwtService(
         @Value("${store.jwt.secretKey}") String secretKey,
         @Value("${store.jwt.duration}") long duration,
-        @Value("${store.jwt.httpOnly}") boolean httpOnly
+        @Value("${store.jwt.httpOnly}") boolean httpOnly,
+        @Value("${store.jwt.cookieSecure}") boolean cookieSecure
     ) {
         this.key = Keys.hmacShaKeyFor(Base64.getDecoder().decode(secretKey));
         this.duration = duration;
         this.httpOnly = httpOnly;
+        this.cookieSecure = cookieSecure;
     }
 
     // nunca colocar senha nem hash no token: o payload e so Base64, qualquer um le
@@ -84,6 +87,10 @@ public class JwtService {
 
     public boolean httpOnly() {
         return httpOnly;
+    }
+
+    public boolean cookieSecure() {
+        return cookieSecure;
     }
 
 }

@@ -10,3 +10,6 @@ store:
     # duracao do token e do cookie, em milissegundos (1 h)
     duration: ${JWT_DURATION:3600000}
     httpOnly: ${JWT_HTTP_ONLY:true}
+    # flag Secure do cookie. true = so trafega em HTTPS (ou localhost) e usa
+    # SameSite=None; false = aceito em HTTP puro e usa SameSite=Lax
+    cookieSecure: ${JWT_COOKIE_SECURE:true}

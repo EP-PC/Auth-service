@@ -76,13 +76,15 @@ public class AuthResource {
         return ResponseEntity.ok().build();
     }
 
-    // unico lugar que define o cookie. Secure sempre (decisao da Fase 1);
-    // SameSite=None (front em outro dominio) exige Secure
+    // unico lugar que define o cookie. Secure vem de JWT_COOKIE_SECURE (default true).
+    // SameSite=None (front em outro dominio) exige Secure: o navegador rejeita
+    // None sem Secure, entao sem Secure cai para Lax (mesmo site)
     private ResponseCookie buildCookie(String value, Duration maxAge) {
+        boolean secure = jwtService.cookieSecure();
         return ResponseCookie.from(AUTH_COOKIE_TOKEN, value)
             .httpOnly(jwtService.httpOnly())
-            .secure(true)
-            .sameSite("None")
+            .secure(secure)
+            .sameSite(secure ? "None" : "Lax")
             .path("/")
             .maxAge(maxAge)
             .build();

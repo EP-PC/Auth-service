@@ -25,6 +25,19 @@ O token nunca carrega senha nem hash.
 
 O cookie é `HttpOnly`, `Secure`, `SameSite=None` e `Path=/`, com `Max-Age` igual à duração do token.
 
+`Secure` é configurável por `JWT_COOKIE_SECURE` (default `true`):
+
+| `JWT_COOKIE_SECURE` | Cookie | Quando usar |
+|---|---|---|
+| `true` (default) | `Secure; SameSite=None` | HTTPS ou `localhost` (contexto seguro) |
+| `false` | sem `Secure`; `SameSite=Lax` | acesso por HTTP puro (ex.: EKS via Load Balancer `http://...elb.amazonaws.com:8080`) |
+
+Com `Secure` e acesso por HTTP (fora de `localhost`), navegador e curl descartam o cookie: o login devolve 200, mas nada autenticado funciona.
+`SameSite=None` exige `Secure`, por isso com `false` o cookie usa `Lax` (front e API no mesmo host).
+
+**Trade-off:** com `false`, o cookie (o JWT) trafega **em claro** e pode ser capturado na rede.
+É um paliativo para o ambiente da disciplina; em produção o certo é domínio próprio + certificado (ACM) + HTTPS no Load Balancer, com `JWT_COOKIE_SECURE=true`.
+
 ## Variáveis de ambiente
 
 | Variável | Obrigatória | Default | Descrição |
@@ -32,6 +45,7 @@ O cookie é `HttpOnly`, `Secure`, `SameSite=None` e `Path=/`, com `Max-Age` igua
 | `JWT_SECRET_KEY` | sim | — | Base64 de **32 bytes aleatórios** (mínimo do HS256) |
 | `JWT_DURATION` | não | `3600000` | duração do token/cookie, em ms |
 | `JWT_HTTP_ONLY` | não | `true` | flag `HttpOnly` do cookie |
+| `JWT_COOKIE_SECURE` | não | `true` | flag `Secure` do cookie (`false` → `SameSite=Lax`; ver [JWT](#jwt)) |
 
 Gerando a chave:
 
