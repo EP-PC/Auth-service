@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
           - name: auth
-            image: pedrohmm1/auth:60d9ce8
+            image: pedrohmm1/auth:1b67b55
             imagePullPolicy: Always
             ports:
               - containerPort: 8080
