@@ -69,3 +69,44 @@ curl -i -c jar.txt -X POST localhost:8080/auth/login -H 'Content-Type: applicati
 curl -i -X POST localhost:8080/auth/solve -H 'Content-Type: application/json' \
   -d "{\"token\":\"$(awk '/__store_jwt_token/{print $7}' jar.txt)\"}"
 ```
+
+## Kubernetes (Minikube)
+
+Manifestos em `k8s/k8s.yaml` (Deployment + Service `ClusterIP` 8080, nome `auth`).
+O auth não usa banco. Pré-requisito: o `account` já aplicado (Service `account` 8080),
+que é o `http://account:8080` do Feign.
+
+A `JWT_SECRET_KEY` vem do Secret `auth-secrets`, criado só com essa chave do `.env` local
+(nada disso vai para o Git; `k8s/secrets.example.yaml` mostra só o formato). **Não** use
+`--from-env-file=.env`: o `.env` também tem `ACCOUNT_ADMIN_*`, que são só do compose local.
+
+```bash
+kubectl create secret generic auth-secrets \
+  --from-literal=JWT_SECRET_KEY="$(grep '^JWT_SECRET_KEY=' .env | cut -d= -f2- | tr -d '\r')"
+kubectl describe secret auth-secrets   # mostra só o tamanho (44 bytes)
+```
+
+Imagem (o cluster puxa do Docker Hub; a tag é o commit do código):
+
+```bash
+mvn package
+docker build -t pedrohmm1/auth:<tag> -t pedrohmm1/auth:latest .
+docker push pedrohmm1/auth:<tag>
+docker push pedrohmm1/auth:latest
+```
+
+Deploy e teste (o Service é interno; para testar de fora, use port-forward):
+
+```bash
+kubectl apply -f k8s/k8s.yaml
+kubectl get pods,svc
+kubectl logs deploy/auth
+kubectl port-forward svc/auth 8082:8080   # http://localhost:8082/auth/health-check
+```
+
+Com o port-forward, `login` e `solve` funcionam como no teste rápido (porta 8082). O `/auth/me`
+lê o header `id-account`, que em produção é injetado pelo gateway; sem gateway, passe-o à mão
+com o `idAccount` devolvido pelo `solve`.
+
+A JVM usa até 50% do limite de memória do container como heap
+(`JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50`), para não estourar os 512Mi.

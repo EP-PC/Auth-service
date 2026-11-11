@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      containers:
+          - name: auth
+            image: pedrohmm1/auth:60d9ce8
+            imagePullPolicy: Always
+            ports:
+              - containerPort: 8080
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "250m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+            env:
+
+              # chave HMAC do JWT (Secret criado fora do Git, ver README).
+              # Sem default: sem ela o servico nao sobe.
+              - name: JWT_SECRET_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: auth-secrets
+                    key: JWT_SECRET_KEY
+
+              # heap de ate 50% do limite (256 MB de 512Mi); sobra para metaspace/threads
+              - name: JAVA_TOOL_OPTIONS
+                value: "-XX:MaxRAMPercentage=50"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+spec:
+  selector:
+    app: auth
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
