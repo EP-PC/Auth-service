@@ -18,6 +18,17 @@ spec:
             imagePullPolicy: Always
             ports:
               - containerPort: 8080
+            # sem probe, o pod novo era dado como pronto assim que o container subia: o rollout
+            # derrubava o antigo e a API dava 503 nos ~40 s de inicializacao do Spring.
+            # A 8080 so abre no fim da inicializacao do contexto, entao o teste TCP basta
+            # (sem actuator, sem mudar codigo). Readiness nao reinicia o pod: so o tira do Service
+            # enquanto falha (6 falhas seguidas de 5 em 5 s, depois de ja ter ficado pronto).
+            readinessProbe:
+              tcpSocket:
+                port: 8080
+              initialDelaySeconds: 20
+              periodSeconds: 5
+              failureThreshold: 6
             resources:
               requests:
                 memory: "256Mi"
