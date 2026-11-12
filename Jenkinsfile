@@ -25,5 +25,25 @@ pipeline {
                 }
             }
         }
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'aws-credential',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh '''
+                        export AWS_DEFAULT_REGION=us-east-2
+                        trap 'rm -f ./kubeconfig' EXIT
+                        if ! out=$(aws eks describe-cluster --name eks-store 2>&1); then
+                            if echo "$out" | grep -q ResourceNotFoundException; then
+                                echo "Cluster eks-store nao esta de pe: pulando o deploy"; exit 0
+                            fi
+                            echo "$out"; exit 1
+                        fi
+                        aws eks update-kubeconfig --name eks-store --kubeconfig ./kubeconfig
+                        kubectl --kubeconfig ./kubeconfig set image deployment/${SERVICE} ${SERVICE}=${NAME}:${BUILD_ID}
+                        kubectl --kubeconfig ./kubeconfig rollout status deployment/${SERVICE} --timeout=300s
+                    '''
+                }
+            }
+        }
     }
 }

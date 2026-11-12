@@ -124,3 +124,42 @@ com o `idAccount` devolvido pelo `solve`.
 
 A JVM usa até 50% do limite de memória do container como heap
 (`JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50`), para não estourar os 512Mi.
+
+**Readiness probe:** o container tem um `readinessProbe` TCP na porta 8080 (primeiro teste aos
+20 s, depois a cada 5 s; com 6 falhas seguidas o pod sai do Service). Sem ele, no rolling update
+o Kubernetes dava o pod novo como pronto assim que o container subia e derrubava o antigo:
+a API respondia `503` durante os ~40 s de inicialização do Spring. Como a 8080 só abre no fim
+da inicialização do contexto, o teste TCP basta, sem actuator e sem mudar código.
+A readiness não reinicia o pod; ela só controla se ele recebe tráfego.
+
+## CI/CD (Jenkins)
+
+Estágios do `Jenkinsfile`:
+
+1. `Dependencies`: dispara o job `account` (contrato `store:account`, usado pelo Feign) e espera.
+2. `Build`: `mvn -B -DskipTests clean package`.
+3. `Build & Push Image`: publica `pedrohmm1/auth:latest` e `pedrohmm1/auth:<BUILD_ID>`
+   (linux/amd64 e linux/arm64) no Docker Hub.
+4. `Deploy to EKS`: atualiza o Deployment `auth` no cluster `eks-store` (us-east-2) para a
+   imagem `pedrohmm1/auth:<BUILD_ID>` que o estágio anterior acabou de publicar.
+
+O deploy usa a credencial `aws-credential` do Jenkins (usuário IAM `store-jenkins`, que só pode
+`eks:DescribeCluster` e, dentro do cluster, editar o namespace `default`). O estágio gera um
+kubeconfig temporário no workspace (apagado ao sair, mesmo em caso de erro) e roda:
+
+```bash
+kubectl set image deployment/auth auth=pedrohmm1/auth:<BUILD_ID>
+kubectl rollout status deployment/auth --timeout=300s
+```
+
+- Cluster desligado (`ResourceNotFoundException` no `describe-cluster`): avisa e pula o deploy,
+  sem quebrar o build.
+- Qualquer outro erro (credencial, permissão, Deployment inexistente, rollout que não termina
+  em 5 min): o build falha.
+- O `rollout status` só termina quando o pod novo passa no readiness probe; até lá o pod antigo
+  continua atendendo.
+
+**Tags:** depois de um deploy pelo Jenkins, o cluster roda a tag `<BUILD_ID>`. O `k8s/k8s.yaml`
+deste repo continua com a tag do commit (`1b67b55`), que é a usada pelo `aws/up.ps1` do
+store-pma ao recriar o cluster. Ou seja, um cluster recém-criado volta para a imagem do
+manifesto até o próximo build no Jenkins.
